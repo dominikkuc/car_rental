@@ -1,43 +1,49 @@
+from django.http import Http404
 from rest_framework import status
-from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from clients.models import Client
 from clients.serializers import ClientSerializer
 
 
-@api_view(['GET', 'POST'])
-def client_list(request):
-    if request.method == 'GET':
+class ClientListView(APIView):
+
+    def get(self, request):
         clients = Client.objects.all()
         serializer = ClientSerializer(clients, many=True)
         return Response(serializer.data)
 
-    elif request.method == 'POST':
+    def post(self, request):
         serializer = ClientSerializer(data=request.data)
+
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['GET', 'PUT', 'DELETE'])
-def client_detail(request, pk):
-    try:
-        snippet = Client.objects.get(pk=pk)
-    except Client.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+class ClientDetails(APIView):
+    def get_object(self, pk):
+        try:
+            return Client.objects.get(pk=pk)
+        except Client.DoesNotExist:
+            raise Http404
 
-    if request.method == 'GET':
-        serializer = ClientSerializer(snippet)
+    def get(self, request, pk, format=None):
+        client = self.get_object(pk)
+        serializer = ClientSerializer(client)
         return Response(serializer.data)
 
-    elif request.method == 'PUT':
-        serializer = ClientSerializer(snippet, data=request.data)
+    def put(self, request, pk, format=None):
+        client = self.get_object(pk)
+        serializer = ClientSerializer(client, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    elif request.method == 'DELETE':
-        snippet.delete()
+    def delete(self, request, pk, format=None):
+        client = self.get_object(pk)
+        client.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
